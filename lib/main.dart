@@ -15,19 +15,17 @@ void main() async {
     print("Firebase Initialized Successfully");
   } catch (e) {
     print("Firebase Initialization Error: $e");
-
   }
 
   runApp(MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(), // Start with the SplashScreen
+      home: SplashScreen(),
     );
   }
 }
@@ -41,9 +39,13 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    _startSplashScreenTimer();
   }
 
+  void _startSplashScreenTimer() {
+    // Display the splash screen for 2 seconds before checking login status
+    Future.delayed(Duration(seconds: 2), _checkLoginStatus);
+  }
 
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -80,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen> {
   // Call this method when the user successfully logs in
   void _setLoginSession() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('rememberMe', true);  // Save "Remember me" preference
+    await prefs.setBool('rememberMe', true); // Save "Remember me" preference
   }
 
   @override

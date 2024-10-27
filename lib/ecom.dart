@@ -22,6 +22,21 @@ class _EcomScreenState extends State<EcomScreen>
 
   String? userUid; // Variable to store user uid
 
+  Future<void> _saveAddressDetails() async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userUid)
+        .collection('addresses')
+        .add({
+      'fullName': fullNameController.text,
+      'phoneNumber': phoneController.text,
+      'address': addressController.text,
+      'postalCode': postalCodeController.text,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+
   final List<Product> products = [
     Product(
       imageUrl:
@@ -253,30 +268,90 @@ class _EcomScreenState extends State<EcomScreen>
 
 
 
-  void _proceedToCheckout() {
+
+  void _proceedToCheckout() async {
     if (cartItems.isEmpty) {
       _showSnackbar('Your cart is empty!');
       return;
     }
 
+    List<DocumentSnapshot> savedAddresses = [];
+    if (userUid != null) {
+      final addressSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userUid)
+          .collection('addresses')
+          .orderBy('timestamp', descending: true)
+          .get();
+      savedAddresses = addressSnapshot.docs;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Choose an Address'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                ...savedAddresses.map((doc) {
+                  final addressData = doc.data() as Map<String, dynamic>;
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 5.0),
+                    child: ListTile(
+                      title: Text(addressData['address']),
+                      subtitle: Text(
+                          '${addressData['fullName']} - ${addressData['phoneNumber']}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          await doc.reference.delete();
+                          Navigator.of(context).pop(); // Close dialog
+                          _proceedToCheckout(); // Reopen to refresh list
+                        },
+                      ),
+                      onTap: () {
+                        // Use this address for the order
+                        fullNameController.text = addressData['fullName'];
+                        phoneController.text = addressData['phoneNumber'];
+                        addressController.text = addressData['address'];
+                        postalCodeController.text = addressData['postalCode'];
+                        Navigator.of(context).pop();
+                        _placeOrder();
+                      },
+                    ),
+                  );
+                }).toList(),
+                ListTile(
+                  leading: Icon(Icons.add),
+                  title: Text('Add a new address'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showNewAddressDialog();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showNewAddressDialog() {
     final _formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Checkout'),
+          title: Text('Enter New Address'),
           content: SingleChildScrollView(
             child: Form(
-              key: _formKey, // Form key for validation
+              key: _formKey,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Products:'),
-                  ...cartItems
-                      .map(
-                          (item) => Text('${item.productName} - ${item.price}'))
-                      .toList(),
+                  // Input fields for the new address
                   TextFormField(
                     controller: fullNameController,
                     decoration: InputDecoration(labelText: 'Full Name'),
@@ -333,18 +408,17 @@ class _EcomScreenState extends State<EcomScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 if (_formKey.currentState!.validate()) {
-                  _placeOrder();
+                  await _saveAddressDetails();
                   Navigator.of(context).pop();
+                  _proceedToCheckout(); // Refresh to show the new address
                 }
               },
-              child: Text('Confirm'),
+              child: Text('Save'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text('Cancel'),
             ),
           ],
@@ -417,7 +491,7 @@ class _EcomScreenState extends State<EcomScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Quit Smoking Products', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        title: Text('Nicquit Store', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
         backgroundColor: Color(0xFF1c92d2), // Primary color for futuristic feel
         automaticallyImplyLeading: false, // Remove the back button
         actions: [

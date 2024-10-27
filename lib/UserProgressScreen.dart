@@ -382,7 +382,7 @@ class _UserProgressScreenState extends State<UserProgressScreen> with SingleTick
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             gradient: LinearGradient(
-              colors: [Color(0xFF1c92d2), Color(0xFFB3E5FC),],
+              colors: [Color(0xFF1c92d2), Color(0xFF81D4FA),],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -521,7 +521,7 @@ class _ModernCardState extends State<ModernCard> with SingleTickerProviderStateM
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1c92d2), Color(0xFFB3E5FC),],
+                  colors: [Color(0xFF1c92d2), Color(0xFF81D4FA),],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nicquit/UserProgressScreen.dart';
+import 'package:flutter/services.dart';
+
 
 class DataSmoking extends StatefulWidget {
   const DataSmoking({Key? key}) : super(key: key);
@@ -148,42 +150,48 @@ class _DataSmokingState extends State<DataSmoking> {
                   children: [
                     TextFormField(
                       controller: _cigarettesPerDayController,
+                      keyboardType: TextInputType.number, // Show numeric keyboard
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Only allow digits
                       decoration: InputDecoration(
                         labelText: 'Cigarettes smoked per day',
-                        labelStyle: TextStyle(color: Colors.blueAccent),
+                        labelStyle: TextStyle(color: Colors.black54),
                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent),
+                          borderSide: BorderSide(color: Colors.black),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 2.0), // Thicker line when focused
+                          borderSide: BorderSide(color: Colors.black54, width: 2.0),
                         ),
                       ),
                     ),
                     SizedBox(height: 10.0),
                     TextFormField(
                       controller: _pricePerPackController,
+                      keyboardType: TextInputType.number, // Show numeric keyboard
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Only allow digits
                       decoration: InputDecoration(
                         labelText: 'Price of a pack',
-                        labelStyle: TextStyle(color: Colors.blueAccent),
+                        labelStyle: TextStyle(color: Colors.black54),
                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent),
+                          borderSide: BorderSide(color: Colors.black),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 2.0),
+                          borderSide: BorderSide(color: Colors.black54, width: 2.0),
                         ),
                       ),
                     ),
                     SizedBox(height: 10.0),
                     TextFormField(
                       controller: _cigarettesPerPackController,
+                      keyboardType: TextInputType.number, // Show numeric keyboard
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Only allow digits
                       decoration: InputDecoration(
                         labelText: 'Number of cigarettes per pack',
-                        labelStyle: TextStyle(color: Colors.blueAccent),
+                        labelStyle: TextStyle(color: Colors.black54),
                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent),
+                          borderSide: BorderSide(color: Colors.black),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 2.0),
+                          borderSide: BorderSide(color: Colors.black54, width: 2.0),
                         ),
                       ),
                     ),
@@ -193,7 +201,7 @@ class _DataSmokingState extends State<DataSmoking> {
                       decoration: InputDecoration(
                         labelText: 'Select Currency',
                         labelStyle: TextStyle(
-                          color: Colors.blueAccent,
+                          color: Colors.black54,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -201,25 +209,25 @@ class _DataSmokingState extends State<DataSmoking> {
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15.0),
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+                          borderSide: BorderSide(color: Colors.black, width: 2),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15.0),
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 1),
+                          borderSide: BorderSide(color: Colors.black, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15.0),
-                          borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+                          borderSide: BorderSide(color: Colors.black, width: 2),
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedCurrency,
                           isExpanded: true,
-                          icon: Icon(Icons.arrow_drop_down, color: Colors.blueAccent),
+                          icon: Icon(Icons.arrow_drop_down, color: Colors.black),
                           iconSize: 28,
                           elevation: 16,
-                          style: TextStyle(color: Colors.blueAccent, fontSize: 16),
+                          style: TextStyle(color: Colors.black, fontSize: 16),
                           dropdownColor: Colors.white,
                           onChanged: (String? newValue) {
                             setState(() {
@@ -234,7 +242,7 @@ class _DataSmokingState extends State<DataSmoking> {
                                 child: Text(
                                   value,
                                   style: TextStyle(
-                                    color: Colors.black87,
+                                    color: Colors.black,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -248,7 +256,7 @@ class _DataSmokingState extends State<DataSmoking> {
                     ElevatedButton(
                       onPressed: () => _selectDateTime(context),
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.blueAccent, // Button color
+                        foregroundColor: Colors.black, // Button color
                       ),
                       child: Text(_selectedDateTime == null
                           ? 'Select Date and Time'
@@ -258,7 +266,7 @@ class _DataSmokingState extends State<DataSmoking> {
                     ElevatedButton(
                       onPressed: _isLoading ? null : _submitData,
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.blueAccent, // Button color
+                        foregroundColor: Colors.black, // Button color
                       ),
                       child: _isLoading
                           ? CircularProgressIndicator(color: Colors.white)
