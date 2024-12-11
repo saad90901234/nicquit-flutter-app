@@ -9,134 +9,29 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  List<Map<String, dynamic>> messages = [];
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Text controller for input field
   final TextEditingController _messageController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    addBotMessage("How can I assist you today?");
-  }
-
-  // Method to add bot message
-  void addBotMessage(String message) {
-    setState(() {
-      messages.add({"message": message, "isMe": false});
-    });
-  }
-
-  // Method to add user message
-  void addUserMessage(String message) {
-    setState(() {
-      messages.add({"message": message, "isMe": true});
-    });
-  }
-
-
-  // Method to store user messages to Firestore
-  Future<void> storeMessageToFirestore(String message, String username) async {
-    User? user = _auth.currentUser;
-    if (user != null) {
-      try {
-        // checking if the user already has a document in the 'support' collection
-        QuerySnapshot userDoc = await FirebaseFirestore.instance
-            .collection('support')
-            .where('userUID', isEqualTo: user.uid)
-            .get();
-
-        DocumentReference userDocRef;
-
-        if (userDoc.docs.isEmpty) {
-          // If no document exists, create a new one with userUID and username
-          userDocRef = await FirebaseFirestore.instance.collection('support').add({
-            'userUID': user.uid,
-            'username': username,
-          });
-        } else {
-          // If the document exists, use the existing document reference
-          userDocRef = userDoc.docs.first.reference;
-        }
-
-        // Store the message in the messages sub-collection
-        await userDocRef.collection('messages').add({
-          'message': message,
-          'timestamp': FieldValue.serverTimestamp(),
-          'isMe': true,
-          'senderID': user.uid,
-        });
-      } catch (e) {
-        print("Error storing message: $e");
-      }
-    }
-  }
-
-  // Method to send message
-  void onSendMessage(String message) async {
-    if (message.trim().isEmpty) return;
-
-    // Fetch the username from Firestore (asynchronous call)
-    String username = await getUsernameForCurrentUser();
-
-    addUserMessage(message);  // Add the message to the chat UI
-    storeMessageToFirestore(message, username);  // Store the message in Firestore
-
-    // Clear the message input field after sending
-    _messageController.clear();
-  }
-
-  // get username
-  Future<String> getUsernameForCurrentUser() async {
-    User? user = _auth.currentUser;  // Get the current logged-in user
-    if (user != null) {
-      try {
-        // Access the 'users' collection and fetch the document with the current user's UID
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
-        if (userDoc.exists && userDoc.data() != null) {
-          // Return the username from the document, if it exists
-          return userDoc['username'] ?? 'Unknown';
-        }
-      } catch (e) {
-        print("Error fetching username: $e");
-      }
-    }
-
-    return 'Unknown';  // Fallback in case no user is found or error occurs
-  }
-
-  Stream<QuerySnapshot> fetchMessages() async* {
-    User? user = _auth.currentUser;
-
-    if (user != null) {
-      // Step 1: Query to find the document with the matching userUID
-      QuerySnapshot supportDocSnapshot = await FirebaseFirestore.instance
-          .collection('support')
-          .where('userUID', isEqualTo: user.uid)
-          .get();
-
-      if (supportDocSnapshot.docs.isNotEmpty) {
-        // Step 2: If a matching document is found, access the 'messages' sub-collection
-        DocumentReference supportDocRef = supportDocSnapshot.docs.first.reference;
-
-        // Fetch the messages from the 'messages' sub-collection
-        yield* supportDocRef.collection('messages')
-            .orderBy('timestamp', descending: true)
-            .snapshots();
-      }
-    }
-  }
-
-
+  // Predefined text suggestions for quitting smoking
+  final List<String> predefinedSuggestions = [
+    "How can I deal with cravings?",
+    "What are some tips to stay motivated?",
+    "Tell me about products to quit smoking.",
+    "How can I stay on track with my quitting journey?"
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Support'),
+        title: Text('Quit Support Chat'),
         backgroundColor: Color(0xFF1c92d2),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: showEndChatDialog, // Show dialog to end chat
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -147,8 +42,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         child: Column(
-          children: <Widget>[
-            // Fetch messages from Firestore and display them in a ListView
+          children: [
             Expanded(
               child: StreamBuilder(
                 stream: fetchMessages(),
@@ -157,22 +51,26 @@ class _ChatScreenState extends State<ChatScreen> {
                     return Center(child: CircularProgressIndicator());
                   }
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(child: Text('No messages yet.'));
-                  }
-
-                  final messages = snapshot.data!.docs;
+                  final messages = snapshot.data?.docs ?? [];
 
                   return ListView.builder(
                     reverse: true,
-                    itemCount: messages.length,
+                    itemCount: messages.length + 1, // Add one for the static greeting message
                     itemBuilder: (context, index) {
+                      if (index == messages.length) {
+                        // Static greeting message at the top
+                        return buildChatBubble(
+                          'Welcome to Nicquit Support! How can we help you quit smoking today?',
+                          false, // isMe is false for admin
+                          '', // No timestamp for the static message
+                        );
+                      }
+
                       final messageData = messages[index];
                       String messageText = messageData['message'] ?? '';
                       bool isMe = messageData['isMe'] ?? false;
                       Timestamp? timestamp = messageData['timestamp'];
 
-                      // Format the timestamp to show date and time
                       String formattedTime = timestamp != null
                           ? DateFormat('MMM d, yyyy h:mm a').format(timestamp.toDate())
                           : 'Unknown time';
@@ -183,7 +81,42 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
-            // Input field and send button for user to send messages
+            // Predefined Text Suggestions
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: predefinedSuggestions.map((option) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 5),
+                    child: GestureDetector(
+                      onTap: () {
+                        onSendMessage(option);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        margin: EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [Colors.purple, Colors.blue]),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          option,
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            // Input Field and Send Button
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               child: Row(
@@ -208,22 +141,19 @@ class _ChatScreenState extends State<ChatScreen> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         ),
-                        onSubmitted: (message) => onSendMessage(message), // Send message on enter
+                        onSubmitted: (message) => onSendMessage(message),
                       ),
                     ),
                   ),
                   SizedBox(width: 10),
                   GestureDetector(
                     onTap: () {
-                      // Send message using the send button
                       onSendMessage(_messageController.text);
                     },
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF1c92d2), Color(0xFF6dd5ed)],
-                        ),
+                        gradient: LinearGradient(colors: [Color(0xFF1c92d2), Color(0xFF6dd5ed)]),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -233,10 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ],
                       ),
-                      child: Icon(
-                        Icons.send,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.send, color: Colors.white),
                     ),
                   ),
                 ],
@@ -248,8 +175,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Chat bubble widget to display messages
-// Chat bubble widget to display messages with timestamp
   Widget buildChatBubble(String message, bool isMe, String formattedTime) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -258,7 +183,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         constraints: BoxConstraints(maxWidth: 250),
         decoration: BoxDecoration(
-          color: isMe ? Colors.blue[200] : Colors.white,
+          color: isMe ? Colors.blue[400] : Colors.white,
           borderRadius: isMe
               ? BorderRadius.only(
             topLeft: Radius.circular(15),
@@ -279,27 +204,142 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment
-              .start,
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
               message,
-              style: TextStyle(
-                color: isMe ? Colors.white : Colors.black87,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontSize: 16),
             ),
             SizedBox(height: 5),
             Text(
               formattedTime,
-              style: TextStyle(
-                color: isMe ? Colors.white70 : Colors.black54,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: isMe ? Colors.white70 : Colors.black54, fontSize: 10),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Stream<QuerySnapshot> fetchMessages() async* {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      QuerySnapshot supportDocSnapshot = await FirebaseFirestore.instance
+          .collection('support')
+          .where('userUID', isEqualTo: user.uid)
+          .get();
+
+      if (supportDocSnapshot.docs.isNotEmpty) {
+        DocumentReference supportDocRef = supportDocSnapshot.docs.first.reference;
+        yield* supportDocRef.collection('messages').orderBy('timestamp', descending: true).snapshots();
+      }
+    }
+  }
+
+  Future<void> onSendMessage(String message) async {
+    if (message.trim().isEmpty) return;
+
+    String username = await getUsernameForCurrentUser();
+    await storeMessageToFirestore(message, username);
+
+    _messageController.clear();
+  }
+
+  Future<String> getUsernameForCurrentUser() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (userDoc.exists && userDoc.data() != null) {
+          return userDoc['username'] ?? 'Unknown';
+        }
+      } catch (e) {
+        print("Error fetching username: $e");
+      }
+    }
+    return 'Unknown';
+  }
+
+  Future<void> storeMessageToFirestore(String message, String username) async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        QuerySnapshot userDoc = await FirebaseFirestore.instance
+            .collection('support')
+            .where('userUID', isEqualTo: user.uid)
+            .get();
+
+        DocumentReference userDocRef;
+
+        if (userDoc.docs.isEmpty) {
+          userDocRef = await FirebaseFirestore.instance.collection('support').add({
+            'userUID': user.uid,
+            'username': username,
+          });
+        } else {
+          userDocRef = userDoc.docs.first.reference;
+        }
+
+        await userDocRef.collection('messages').add({
+          'message': message,
+          'timestamp': FieldValue.serverTimestamp(),
+          'isMe': true,
+          'senderID': user.uid,
+        });
+      } catch (e) {
+        print("Error storing message: $e");
+      }
+    }
+  }
+
+  void showEndChatDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('End Chat'),
+          content: Text('Are you sure you want to end this chat? This will delete all chat messages.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await deleteChatMessages();
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: Text('Yes, End Chat'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> deleteChatMessages() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        QuerySnapshot supportDocSnapshot = await FirebaseFirestore.instance
+            .collection('support')
+            .where('userUID', isEqualTo: user.uid)
+            .get();
+
+        if (supportDocSnapshot.docs.isNotEmpty) {
+          DocumentReference supportDocRef = supportDocSnapshot.docs.first.reference;
+          QuerySnapshot messagesSnapshot = await supportDocRef.collection('messages').get();
+
+          for (var doc in messagesSnapshot.docs) {
+            await doc.reference.delete();
+          }
+        }
+      } catch (e) {
+        print("Error deleting messages: $e");
+      }
+    }
   }
 }
